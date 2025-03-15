@@ -1,18 +1,54 @@
 "use client";
 
-import { Link } from "@heroui/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { button as buttonStyles } from "@heroui/theme";
 
-import { siteConfig } from "@/config/site";
 import { title, subtitle } from "@/components/primitives";
 import { Dropzone } from "@/components/Dropzone";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { useProcess } from "@/lib/context/ProcessContext";
+import { extractCriteriaFromPDF } from "@/lib/api";
 
 export default function Home() {
+  const router = useRouter();
+  const { setPdfFile, setCriteria, isLoading, setIsLoading, setError } =
+    useProcess();
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+
   // This function will be called when a file is accepted by the dropzone
   const handleFileAccepted = (file: File) => {
     console.log("File accepted:", file);
-    // Here you would typically upload the file to your server
-    // or process it client-side
+    setUploadedFile(file);
+    setPdfFile(file);
+  };
+
+  const handleProcess = async () => {
+    if (!uploadedFile) {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Call the API to extract criteria from the PDF
+      const response = await extractCriteriaFromPDF(uploadedFile);
+
+      if (response.success) {
+        setCriteria(response.criteria);
+
+        // Navigate to the validation page
+        router.push("/validate");
+      } else {
+        setError(response.message || "Failed to extract criteria from the PDF");
+      }
+    } catch (err) {
+      console.error("Error processing PDF:", err);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -31,17 +67,25 @@ export default function Home() {
       <Dropzone onFileAccepted={handleFileAccepted} className="mt-6 mb-6" />
 
       <div className="flex gap-3">
-        <Link
-          isExternal
+        <button
           className={buttonStyles({
             color: "primary",
             radius: "full",
             variant: "shadow",
+            isDisabled: !uploadedFile || isLoading,
           })}
-          href={siteConfig.links.docs}
+          disabled={!uploadedFile || isLoading}
+          onClick={handleProcess}
         >
-          Next &gt;
-        </Link>
+          {isLoading ? (
+            <div className="flex items-center gap-2">
+              <LoadingSpinner size="sm" />
+              <span>Processing...</span>
+            </div>
+          ) : (
+            "Next >"
+          )}
+        </button>
       </div>
     </section>
   );
