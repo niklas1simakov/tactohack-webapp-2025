@@ -65,6 +65,73 @@ export interface SubmitCriteriaResponse {
   nextSteps?: string[];
 }
 
+export interface ProductSpecs {
+  [key: string]: string | number;
+}
+
+export interface ProductRecommendation {
+  category: string;
+  price: number;
+  brand: string;
+  model_name: string;
+  specs: ProductSpecs;
+}
+
+export interface ProcessingResponse {
+  success: boolean;
+  message?: string;
+  recommendations: ProductRecommendation[];
+}
+
+const mockRecommendations: ProductRecommendation[] = [
+  {
+    category: "Laptops",
+    price: 1299,
+    brand: "Lenovo",
+    model_name: "100w Gen 4",
+    specs: {
+      refreshrate: "60",
+      screen: "13.3",
+      ram: 16,
+      storage: 512,
+      gpu: "integrated",
+      cpu: "Intel Processor N100",
+      battery: 47,
+      op_sys: "Windows 11",
+    },
+  },
+  {
+    category: "Monitors",
+    price: 499,
+    brand: "Dell",
+    model_name: "UltraSharp U2723QE",
+    specs: {
+      resolution: "3840x2160",
+      refreshrate: "60",
+      panel: "IPS",
+      size: "27",
+      ports: "HDMI, DisplayPort, USB-C",
+      response_time: "5ms",
+      brightness: "350cd/m²",
+    },
+  },
+  {
+    category: "Network Switches",
+    price: 1899,
+    brand: "Cisco",
+    model_name: "Catalyst 9200-48P",
+    specs: {
+      ports: "48",
+      speed: "10GbE",
+      poe: "PoE+",
+      switching_capacity: "176 Gbps",
+      management: "Full",
+      stacking: "Yes",
+      power_budget: "740W",
+    },
+  },
+];
+
 /**
  * Extracts criteria from a PDF file
  *
@@ -128,6 +195,17 @@ export async function submitCriteria(
       //   message: "Failed to submit criteria. Please try again."
       // });
     }, 1000); // 1 second delay
+  });
+}
+
+export async function processRequirements(): Promise<ProcessingResponse> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: true,
+        recommendations: mockRecommendations,
+      });
+    }, 2000); // 2 second delay to simulate API response
   });
 }
 
