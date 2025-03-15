@@ -65,7 +65,7 @@ export default function ValidatePage() {
       const response = await submitCriteria(criteria);
 
       if (response.success) {
-        router.push("/results");
+        router.push("/processing");
       } else {
         setError(response.message || "Failed to submit criteria");
       }
