@@ -8,12 +8,7 @@ import { PlusIcon, MinusIcon } from "lucide-react";
 import { title, subtitle } from "@/components/primitives";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useProcess } from "@/lib/context/ProcessContext";
-import {
-  extractCriteriaFromPDF,
-  submitCriteria,
-  Criterion,
-  Spec,
-} from "@/lib/api";
+import { extractCriteriaFromPDF, submitCriteria, Criterion } from "@/lib/api";
 
 export default function ValidatePage() {
   const router = useRouter();
@@ -78,28 +73,31 @@ export default function ValidatePage() {
   };
 
   // Function to update a criterion
-  const updateCriterion = (id: string, updates: Partial<Criterion>) => {
+  const updateCriterion = (category: string, updates: Partial<Criterion>) => {
     setCriteria(
       criteria.map((criterion) =>
-        criterion.id === id ? { ...criterion, ...updates } : criterion
+        criterion.category === category
+          ? { ...criterion, ...updates }
+          : criterion
       )
     );
   };
 
   // Function to update a spec
   const updateSpec = (
-    criterionId: string,
-    specIndex: number,
-    updates: Partial<Spec>
+    category: string,
+    specName: string,
+    value: string | number
   ) => {
     setCriteria(
       criteria.map((criterion) =>
-        criterion.id === criterionId
+        criterion.category === category
           ? {
               ...criterion,
-              specs: criterion.specs.map((spec, idx) =>
-                idx === specIndex ? { ...spec, ...updates } : spec
-              ),
+              specs: {
+                ...criterion.specs,
+                [specName]: value,
+              },
             }
           : criterion
       )
@@ -107,18 +105,23 @@ export default function ValidatePage() {
   };
 
   // Function to remove a criterion
-  const removeCriterion = (id: string) => {
-    setCriteria(criteria.filter((criterion) => criterion.id !== id));
+  const removeCriterion = (category: string) => {
+    setCriteria(
+      criteria.filter((criterion) => criterion.category !== category)
+    );
   };
 
   // Function to add a new spec
-  const addSpec = (criterionId: string) => {
+  const addSpec = (category: string) => {
     setCriteria(
       criteria.map((criterion) =>
-        criterion.id === criterionId
+        criterion.category === category
           ? {
               ...criterion,
-              specs: [...criterion.specs, { name: "new-spec", value: "value" }],
+              specs: {
+                ...criterion.specs,
+                "new-spec": "value",
+              },
             }
           : criterion
       )
@@ -126,13 +129,17 @@ export default function ValidatePage() {
   };
 
   // Function to remove a spec
-  const removeSpec = (criterionId: string, specIndex: number) => {
+  const removeSpec = (category: string, specName: string) => {
     setCriteria(
       criteria.map((criterion) =>
-        criterion.id === criterionId
+        criterion.category === category
           ? {
               ...criterion,
-              specs: criterion.specs.filter((_, idx) => idx !== specIndex),
+              specs: Object.fromEntries(
+                Object.entries(criterion.specs).filter(
+                  ([key]) => key !== specName
+                )
+              ),
             }
           : criterion
       )
@@ -179,7 +186,7 @@ export default function ValidatePage() {
           <div className="w-full max-w-4xl">
             {criteria.map((criterion) => (
               <div
-                key={criterion.id}
+                key={criterion.category}
                 className="mb-6 border rounded-lg bg-content1 shadow-sm overflow-hidden"
               >
                 {/* Category Header */}
@@ -190,7 +197,7 @@ export default function ValidatePage() {
                         className="w-full text-lg font-semibold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-primary focus:outline-none transition-colors py-1"
                         value={criterion.category}
                         onChange={(e) =>
-                          updateCriterion(criterion.id, {
+                          updateCriterion(criterion.category, {
                             category: e.target.value,
                           })
                         }
@@ -204,7 +211,7 @@ export default function ValidatePage() {
                         className="w-16 p-1 border rounded text-right"
                         value={criterion.quantity}
                         onChange={(e) =>
-                          updateCriterion(criterion.id, {
+                          updateCriterion(criterion.category, {
                             quantity: parseInt(e.target.value) || 1,
                           })
                         }
@@ -216,7 +223,7 @@ export default function ValidatePage() {
                           size: "sm",
                           className: "ml-4",
                         })}
-                        onClick={() => removeCriterion(criterion.id)}
+                        onClick={() => removeCriterion(criterion.category)}
                       >
                         Remove
                       </button>
@@ -230,46 +237,56 @@ export default function ValidatePage() {
                     <h4 className="text-sm font-medium">Specifications</h4>
                     <button
                       className="flex items-center text-xs text-primary"
-                      onClick={() => addSpec(criterion.id)}
+                      onClick={() => addSpec(criterion.category)}
                     >
                       <PlusIcon size={14} className="mr-1" /> Add Spec
                     </button>
                   </div>
                   <div className="grid grid-cols-1 gap-2">
-                    {criterion.specs.map((spec, specIndex) => (
-                      <div
-                        key={specIndex}
-                        className="flex items-center space-x-2"
-                      >
-                        <input
-                          className="flex-1 text-xs p-1.5 border rounded-l"
-                          value={spec.name}
-                          placeholder="Spec name"
-                          onChange={(e) =>
-                            updateSpec(criterion.id, specIndex, {
-                              name: e.target.value,
-                            })
-                          }
-                        />
-                        <span className="text-xs">=</span>
-                        <input
-                          className="flex-1 text-xs p-1.5 border rounded-r"
-                          value={spec.value}
-                          placeholder="Value"
-                          onChange={(e) =>
-                            updateSpec(criterion.id, specIndex, {
-                              value: e.target.value,
-                            })
-                          }
-                        />
-                        <button
-                          className="text-xs text-danger p-1"
-                          onClick={() => removeSpec(criterion.id, specIndex)}
+                    {Object.entries(criterion.specs).map(
+                      ([specName, specValue]) => (
+                        <div
+                          key={specName}
+                          className="flex items-center space-x-2"
                         >
-                          <MinusIcon size={14} />
-                        </button>
-                      </div>
-                    ))}
+                          <input
+                            className="flex-1 text-xs p-1.5 border rounded-l"
+                            value={specName}
+                            placeholder="Spec name"
+                            onChange={(e) => {
+                              const oldValue = criterion.specs[specName];
+                              removeSpec(criterion.category, specName);
+                              updateSpec(
+                                criterion.category,
+                                e.target.value,
+                                oldValue
+                              );
+                            }}
+                          />
+                          <span className="text-xs">=</span>
+                          <input
+                            className="flex-1 text-xs p-1.5 border rounded-r"
+                            value={specValue}
+                            placeholder="Value"
+                            onChange={(e) =>
+                              updateSpec(
+                                criterion.category,
+                                specName,
+                                e.target.value
+                              )
+                            }
+                          />
+                          <button
+                            className="text-xs text-danger p-1"
+                            onClick={() =>
+                              removeSpec(criterion.category, specName)
+                            }
+                          >
+                            <MinusIcon size={14} />
+                          </button>
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
               </div>

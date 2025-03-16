@@ -40,17 +40,10 @@ const mockCriteria = [
   },
 ];
 
-// Updated interface for the new criteria structure
-export interface Spec {
-  name: string;
-  value: string;
-}
-
 export interface Criterion {
-  id: string;
   category: string;
   quantity: number;
-  specs: Spec[];
+  specs: ProductSpecs;
 }
 
 export interface ExtractCriteriaResponse {
@@ -241,6 +234,7 @@ Best regards,
  * @param file The PDF file to process
  * @returns A promise that resolves to the extracted criteria
  */
+/*
 export async function extractCriteriaFromPDF(
   file: File
 ): Promise<ExtractCriteriaResponse> {
@@ -265,6 +259,7 @@ export async function extractCriteriaFromPDF(
     }, 1500); // 1.5 second delay to simulate processing
   });
 }
+*/
 
 /**
  * Submits the validated criteria to the server
@@ -339,32 +334,50 @@ export async function sendEmails(
 }
 
 // In a real implementation, replace these functions with actual API calls:
-/*
-export async function extractCriteriaFromPDF(file: File): Promise<ExtractCriteriaResponse> {
+export async function extractCriteriaFromPDF(
+  file: File
+): Promise<ExtractCriteriaResponse> {
   try {
     const formData = new FormData();
-    formData.append('file', file);
-    
-    const response = await fetch('https://your-api-endpoint.com/extract-criteria', {
-      method: 'POST',
-      body: formData,
+
+    formData.append("file", file);
+
+    // create json object with input key and text as value
+    const json = {
+      input:
+        "I need a laptop with atleast 512GB storage with extensive certified security features and a camera shutter",
+    };
+
+    const response = await fetch("http://localhost:3001/extract-req", {
+      method: "POST",
+      body: JSON.stringify(json),
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
-    
+
     if (!response.ok) {
-      throw new Error('Failed to process PDF');
+      throw new Error("Failed to process PDF");
     }
-    
-    return await response.json();
+
+    const data = await response.json();
+
+    return {
+      criteria: data.data,
+      success: true,
+      message: "Criteria extracted successfully",
+    };
   } catch (error) {
-    console.error('Error extracting criteria:', error);
     return {
       criteria: [],
       success: false,
-      message: error instanceof Error ? error.message : 'An unknown error occurred'
+      message:
+        error instanceof Error ? error.message : "An unknown error occurred",
     };
   }
 }
 
+/*
 export async function submitCriteria(criteria: Criterion[]): Promise<SubmitCriteriaResponse> {
   try {
     const response = await fetch('https://your-api-endpoint.com/submit-criteria', {
