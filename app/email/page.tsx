@@ -18,7 +18,7 @@ const loadingMessages = [
 
 export default function EmailPage() {
   const router = useRouter();
-  const { criteria } = useProcess();
+  const { criteria, recommendations } = useProcess();
   const [emails, setEmails] = useState<RFQEmail[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -28,16 +28,21 @@ export default function EmailPage() {
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
 
   useEffect(() => {
+    if (emails.length > 0 && !selectedCategory) {
+      setSelectedCategory(emails[0].category);
+    }
+  }, [emails, selectedCategory]);
+
+  useEffect(() => {
     if (criteria.length === 0) {
       router.push("/");
+
       return;
     }
 
-    let mounted = true;
     let messageInterval: NodeJS.Timeout;
 
     const loadEmails = async () => {
-      // Start cycling through loading messages
       messageInterval = setInterval(() => {
         setLoadingMessageIndex((current) =>
           current >= loadingMessages.length - 1 ? 0 : current + 1
@@ -45,36 +50,30 @@ export default function EmailPage() {
       }, 2000);
 
       try {
-        const response = await generateEmails();
-        if (mounted) {
-          if (response.success) {
-            setEmails(response.emails);
-            setSelectedCategory(response.emails[0]?.category || "");
-          } else {
-            setError(response.message || "Failed to generate emails");
-          }
+        const response = await generateEmails(recommendations || []);
+
+        if (response.success) {
+          setEmails(response.emails);
+          setSelectedCategory(response.emails[0]?.category || "");
+        } else {
+          setError(response.message || "Failed to generate emails");
         }
       } catch (err) {
-        if (mounted) {
-          setError("An unexpected error occurred. Please try again.");
-        }
+        setError("An unexpected error occurred. Please try again.");
       } finally {
-        if (mounted) {
-          setIsLoading(false);
-          clearInterval(messageInterval);
-        }
+        setIsLoading(false);
+        clearInterval(messageInterval);
       }
     };
 
     loadEmails();
 
     return () => {
-      mounted = false;
       if (messageInterval) {
         clearInterval(messageInterval);
       }
     };
-  }, [criteria.length, router]);
+  }, [criteria.length, router, recommendations]);
 
   const handleEmailChange = (field: keyof RFQEmail, value: string) => {
     setEmails(
@@ -110,7 +109,7 @@ export default function EmailPage() {
       setIsLoading(true);
       setError(null);
 
-      const response = await generateEmails();
+      const response = await generateEmails(recommendations || []);
 
       if (response.success) {
         setEmails(response.emails);
@@ -206,15 +205,15 @@ export default function EmailPage() {
           <div className="space-y-4">
             <div>
               <label
-                htmlFor="email-to"
                 className="block text-sm font-medium mb-1"
+                htmlFor="email-to"
               >
                 To:
               </label>
               <input
+                className="w-full p-2 rounded border bg-transparent"
                 id="email-to"
                 type="email"
-                className="w-full p-2 rounded border bg-transparent"
                 value={selectedEmail.to}
                 onChange={(e) => handleEmailChange("to", e.target.value)}
               />
@@ -222,15 +221,15 @@ export default function EmailPage() {
 
             <div>
               <label
-                htmlFor="email-subject"
                 className="block text-sm font-medium mb-1"
+                htmlFor="email-subject"
               >
                 Subject:
               </label>
               <input
+                className="w-full p-2 rounded border bg-transparent"
                 id="email-subject"
                 type="text"
-                className="w-full p-2 rounded border bg-transparent"
                 value={selectedEmail.subject}
                 onChange={(e) => handleEmailChange("subject", e.target.value)}
               />
@@ -238,14 +237,14 @@ export default function EmailPage() {
 
             <div>
               <label
-                htmlFor="email-content"
                 className="block text-sm font-medium mb-1"
+                htmlFor="email-content"
               >
                 Content:
               </label>
               <textarea
-                id="email-content"
                 className="w-full h-96 p-4 rounded border bg-transparent font-mono text-sm"
+                id="email-content"
                 value={selectedEmail.content}
                 onChange={(e) => handleEmailChange("content", e.target.value)}
               />
@@ -276,8 +275,8 @@ export default function EmailPage() {
               variant: "flat",
               radius: "full",
             })}
-            onClick={handleRegenerate}
             disabled={isSending}
+            onClick={handleRegenerate}
           >
             Regenerate
           </button>
@@ -287,8 +286,8 @@ export default function EmailPage() {
               radius: "full",
               variant: "shadow",
             })}
-            onClick={handleSend}
             disabled={isSending}
+            onClick={handleSend}
           >
             {isSending ? (
               <div className="flex items-center gap-2">

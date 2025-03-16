@@ -147,7 +147,20 @@ export async function generateEmails(
   recommendations: ProductRecommendation[]
 ): Promise<GenerateEmailsResponse> {
   try {
-    const emailPromises = recommendations.map(async (recommendation) => {
+    if (!Array.isArray(recommendations)) {
+      throw new Error("Recommendations must be an array");
+    }
+
+    if (recommendations.length === 0) {
+      return {
+        success: true,
+        emails: [],
+      };
+    }
+
+    const emails: RFQEmail[] = [];
+
+    for (const recommendation of recommendations) {
       const response = await fetch("http://localhost:3001/gen-email", {
         method: "POST",
         headers: {
@@ -166,15 +179,13 @@ export async function generateEmails(
 
       const data = await response.json();
 
-      return {
-        category: data.category || recommendation.category,
+      emails.push({
+        category: recommendation.category,
         subject: data.subject || "",
         to: data.email || "",
         content: data.content || "",
-      };
-    });
-
-    const emails = await Promise.all(emailPromises);
+      });
+    }
 
     return {
       success: true,
