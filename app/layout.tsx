@@ -57,7 +57,7 @@ export default function RootLayout({
                   title=""
                 >
                   <span className="text-default-600">Build by</span>
-                  <p className="text-primary">Gleh, Airat, Borys & Niklas</p>
+                  <p className="text-primary">Oleh, Airat, Borys & Niklas</p>
                   <span className="text-default-600">
                     @ Tacto Hackathon Munich March 2025
                   </span>
