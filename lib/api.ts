@@ -26,6 +26,7 @@ export interface ProductSpecs {
 }
 
 export interface ProductRecommendation {
+  id: string | number;
   category: string;
   price: number;
   brand: string;
@@ -38,55 +39,6 @@ export interface ProcessingResponse {
   message?: string;
   recommendations: ProductRecommendation[];
 }
-
-const mockRecommendations: ProductRecommendation[] = [
-  {
-    category: "Laptops",
-    price: 1299,
-    brand: "Lenovo",
-    model_name: "100w Gen 4",
-    specs: {
-      refreshrate: "60",
-      screen: "13.3",
-      ram: 16,
-      storage: 512,
-      gpu: "integrated",
-      cpu: "Intel Processor N100",
-      battery: 47,
-      op_sys: "Windows 11",
-    },
-  },
-  {
-    category: "Monitors",
-    price: 499,
-    brand: "Dell",
-    model_name: "UltraSharp U2723QE",
-    specs: {
-      resolution: "3840x2160",
-      refreshrate: "60",
-      panel: "IPS",
-      size: "27",
-      ports: "HDMI, DisplayPort, USB-C",
-      response_time: "5ms",
-      brightness: "350cd/m²",
-    },
-  },
-  {
-    category: "Network Switches",
-    price: 1899,
-    brand: "Cisco",
-    model_name: "Catalyst 9200-48P",
-    specs: {
-      ports: "48",
-      speed: "10GbE",
-      poe: "PoE+",
-      switching_capacity: "176 Gbps",
-      management: "Full",
-      stacking: "Yes",
-      power_budget: "740W",
-    },
-  },
-];
 
 export interface RFQEmail {
   category: string;
@@ -191,16 +143,53 @@ Best regards,
   },
 ];
 
-export async function generateEmails(): Promise<GenerateEmailsResponse> {
-  // Mock API call - in a real app, you would send a request to your server
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        emails: mockEmails,
+export async function generateEmails(
+  recommendations: ProductRecommendation[]
+): Promise<GenerateEmailsResponse> {
+  try {
+    const emailPromises = recommendations.map(async (recommendation) => {
+      const response = await fetch("http://localhost:3001/gen-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          item_id: recommendation.id,
+        }),
       });
-    }, 2000);
-  });
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to generate email for ${recommendation.category}`
+        );
+      }
+
+      const data = await response.json();
+
+      return {
+        category: data.category || recommendation.category,
+        subject: data.subject || "",
+        to: data.email || "",
+        content: data.content || "",
+      };
+    });
+
+    const emails = await Promise.all(emailPromises);
+
+    return {
+      success: true,
+      emails,
+    };
+  } catch (error) {
+    console.error("Error generating emails:", error);
+
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : "An unexpected error occurred",
+      emails: [],
+    };
+  }
 }
 
 export async function sendEmails(

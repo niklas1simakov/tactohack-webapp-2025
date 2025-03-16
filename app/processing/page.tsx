@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { button as buttonStyles } from "@heroui/theme";
 
@@ -27,8 +27,9 @@ export default function ProcessingPage() {
     recommendations?: any[];
     message?: string;
   } | null>(null);
+  const apiCallMade = useRef(false);
 
-  // Effect to handle the API call - runs once on mount
+  // Effect to handle the API call - runs once on mount if criteria is present
   useEffect(() => {
     if (criteria.length === 0) {
       router.push("/");
@@ -36,82 +37,47 @@ export default function ProcessingPage() {
       return;
     }
 
-    let mounted = true;
+    if (apiCallMade.current) {
+      return;
+    }
 
     const makeApiCall = async () => {
       try {
+        apiCallMade.current = true;
+        console.log("Making API call with criteria:", criteria);
         const response = await submitCriteria(criteria);
 
-        if (mounted) {
-          setApiResponse(response);
-          if (response.success) {
-            setRecommendations(response.recommendations || []);
-          } else {
-            setLocalError(response.message || "Failed to process requirements");
-            setError(response.message || "Failed to process requirements");
-          }
+        setApiResponse(response);
+
+        if (response.success == true) {
+          console.log("Setting recommendations:", response.recommendations);
+          setRecommendations(response.recommendations || []);
+          setCurrentStep(mockNextSteps.length - 1);
+          setIsComplete(true);
+        } else {
+          setLocalError(response.message || "Failed to process requirements");
+          setError(response.message || "Failed to process requirements");
         }
       } catch (err) {
-        if (mounted) {
-          const errorMessage =
-            "An unexpected error occurred. Please try again.";
+        console.error("API call error:", err);
+        const errorMessage = "An unexpected error occurred. Please try again.";
 
-          setLocalError(errorMessage);
-          setError(errorMessage);
-        }
+        setLocalError(errorMessage);
+        setError(errorMessage);
       }
     };
 
     makeApiCall();
+  }, [criteria, router, setRecommendations, setError]);
 
-    return () => {
-      mounted = false;
-    };
-  }, []); // Empty dependency array - only run once on mount
-
-  // Separate effect to handle the animation and timing
+  // Simplify the animation effect to only handle progress steps
   useEffect(() => {
-    if (criteria.length === 0) return;
+    if (!isComplete && currentStep < mockNextSteps.length - 1) {
+      const timer = setTimeout(() => setCurrentStep(currentStep + 1), 2000);
 
-    let stepInterval: NodeJS.Timeout;
-    let mounted = true;
-
-    // Progress through steps - 5 seconds per step, total 20 seconds
-    stepInterval = setInterval(() => {
-      setCurrentStep((current) => {
-        if (current >= mockNextSteps.length - 1) {
-          clearInterval(stepInterval);
-
-          return current;
-        }
-
-        return current + 1;
-      });
-    }, 5000);
-
-    // After 20 seconds, show the results if we have them
-    const showResultsTimeout = setTimeout(() => {
-      if (mounted) {
-        if (apiResponse?.success && apiResponse.recommendations?.length) {
-          setIsComplete(true);
-        } else if (apiResponse) {
-          // Only show error if we have an API response
-          setLocalError(
-            apiResponse.message || "No recommendations found. Please try again."
-          );
-          setError(
-            apiResponse.message || "No recommendations found. Please try again."
-          );
-        }
-      }
-    }, 20000);
-
-    return () => {
-      mounted = false;
-      clearInterval(stepInterval);
-      clearTimeout(showResultsTimeout);
-    };
-  }, [criteria.length, apiResponse]); // Only depend on criteria length and API response
+      return () => clearTimeout(timer);
+    }
+  }, [currentStep, isComplete]);
 
   if (criteria.length === 0) {
     return null;
@@ -137,14 +103,20 @@ export default function ProcessingPage() {
     return sum + rec.price * (Number(category?.quantity) || 0);
   }, 0);
 
+  // Update the rendering condition at the top of the component
+  const shouldShowRecommendations = recommendations.length > 0;
+  const showNextButton = recommendations.length > 0;
+
   return (
     <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
       <div className="inline-block max-w-xl text-center justify-center mb-6">
         <span className={title({ size: "sm" })}>
-          {isComplete ? "Recommendations Ready" : "Processing Requirements"}
+          {shouldShowRecommendations
+            ? "Recommendations Ready"
+            : "Processing Requirements"}
         </span>
         <div className={subtitle({ class: "mt-4" })}>
-          {isComplete
+          {shouldShowRecommendations
             ? "We&apos;ve found the best matches for your requirements."
             : "Please wait while we analyze your requirements and find the best matches."}
         </div>
@@ -176,7 +148,7 @@ export default function ProcessingPage() {
           </div>
         </div>
 
-        {!isComplete ? (
+        {!shouldShowRecommendations ? (
           /* Progress Section */
           <div className="mb-8 p-6 bg-content1 rounded-lg shadow-sm">
             <h3 className="text-lg font-semibold mb-4">Progress</h3>
@@ -283,7 +255,7 @@ export default function ProcessingPage() {
         >
           &lt; Back
         </button>
-        {isComplete && (
+        {showNextButton && (
           <button
             className={buttonStyles({
               color: "primary",
