@@ -8,7 +8,7 @@ import { PlusIcon, MinusIcon } from "lucide-react";
 import { title, subtitle } from "@/components/primitives";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useProcess } from "@/lib/context/ProcessContext";
-import { extractCriteriaFromPDF, submitCriteria, Criterion } from "@/lib/api";
+import { extractCriteriaFromPDF, Criterion } from "@/lib/api";
 
 export default function ValidatePage() {
   const router = useRouter();
@@ -20,9 +20,7 @@ export default function ValidatePage() {
     setIsLoading,
     error,
     setError,
-    setRecommendations,
   } = useProcess();
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // If we don't have a PDF file or criteria, redirect back to home
   useEffect(() => {
@@ -54,24 +52,8 @@ export default function ValidatePage() {
   };
 
   const handleNext = async () => {
-    try {
-      setIsSubmitting(true);
-      setError(null);
-
-      const response = await submitCriteria(criteria);
-
-      if (response.success) {
-        setRecommendations(response.recommendations || []);
-        router.push("/processing");
-      } else {
-        setError(response.message || "Failed to submit criteria");
-      }
-    } catch (err) {
-      console.error("Error submitting criteria:", err);
-      setError("An unexpected error occurred. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    setCriteria(criteria);
+    router.push("/processing");
   };
 
   // Function to update a criterion
@@ -303,7 +285,6 @@ export default function ValidatePage() {
                 radius: "full",
               })}
               onClick={handleRegenerate}
-              disabled={isSubmitting}
             >
               Regenerate
             </button>
@@ -314,16 +295,9 @@ export default function ValidatePage() {
                 variant: "shadow",
               })}
               onClick={handleNext}
-              disabled={isSubmitting || criteria.length === 0}
+              disabled={criteria.length === 0}
             >
-              {isSubmitting ? (
-                <div className="flex items-center gap-2">
-                  <LoadingSpinner size="sm" />
-                  <span>Submitting...</span>
-                </div>
-              ) : (
-                "Next >"
-              )}
+              Next &gt;
             </button>
           </div>
         </>

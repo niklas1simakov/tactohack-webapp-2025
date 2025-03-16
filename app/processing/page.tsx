@@ -6,6 +6,7 @@ import { button as buttonStyles } from "@heroui/theme";
 
 import { title, subtitle } from "@/components/primitives";
 import { useProcess } from "@/lib/context/ProcessContext";
+import { submitCriteria } from "@/lib/api";
 
 const mockNextSteps = [
   "Analyzing requirements",
@@ -16,53 +17,101 @@ const mockNextSteps = [
 
 export default function ProcessingPage() {
   const router = useRouter();
-  const { criteria, recommendations } = useProcess();
+  const { criteria, recommendations, setRecommendations, setError } =
+    useProcess();
   const [currentStep, setCurrentStep] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setLocalError] = useState<string | null>(null);
+  const [apiResponse, setApiResponse] = useState<{
+    success: boolean;
+    recommendations?: any[];
+    message?: string;
+  } | null>(null);
 
+  // Effect to handle the API call - runs once on mount
   useEffect(() => {
     if (criteria.length === 0) {
       router.push("/");
+
       return;
     }
+
+    let mounted = true;
+
+    const makeApiCall = async () => {
+      try {
+        const response = await submitCriteria(criteria);
+
+        if (mounted) {
+          setApiResponse(response);
+          if (response.success) {
+            setRecommendations(response.recommendations || []);
+          } else {
+            setLocalError(response.message || "Failed to process requirements");
+            setError(response.message || "Failed to process requirements");
+          }
+        }
+      } catch (err) {
+        if (mounted) {
+          const errorMessage =
+            "An unexpected error occurred. Please try again.";
+
+          setLocalError(errorMessage);
+          setError(errorMessage);
+        }
+      }
+    };
+
+    makeApiCall();
+
+    return () => {
+      mounted = false;
+    };
+  }, []); // Empty dependency array - only run once on mount
+
+  // Separate effect to handle the animation and timing
+  useEffect(() => {
+    if (criteria.length === 0) return;
 
     let stepInterval: NodeJS.Timeout;
     let mounted = true;
 
-    const processSteps = async () => {
-      // Progress through steps - 5 seconds per step, total 20 seconds
-      stepInterval = setInterval(() => {
-        setCurrentStep((current) => {
-          if (current >= mockNextSteps.length - 1) {
-            clearInterval(stepInterval);
-            return current;
-          }
-          return current + 1;
-        });
-      }, 5000);
+    // Progress through steps - 5 seconds per step, total 20 seconds
+    stepInterval = setInterval(() => {
+      setCurrentStep((current) => {
+        if (current >= mockNextSteps.length - 1) {
+          clearInterval(stepInterval);
 
-      // Show recommendations after the animation completes
-      setTimeout(() => {
-        if (mounted) {
-          if (recommendations.length > 0) {
-            setIsComplete(true);
-          } else {
-            setError("No recommendations found. Please try again.");
-          }
+          return current;
         }
-      }, 20000); // Show recommendations after 20 seconds
-    };
 
-    processSteps();
+        return current + 1;
+      });
+    }, 5000);
+
+    // After 20 seconds, show the results if we have them
+    const showResultsTimeout = setTimeout(() => {
+      if (mounted) {
+        if (apiResponse?.success && apiResponse.recommendations?.length) {
+          setIsComplete(true);
+        } else if (apiResponse) {
+          // Only show error if we have an API response
+          setLocalError(
+            apiResponse.message || "No recommendations found. Please try again."
+          );
+          setError(
+            apiResponse.message || "No recommendations found. Please try again."
+          );
+        }
+      }
+    }, 20000);
 
     return () => {
       mounted = false;
-      if (stepInterval) {
-        clearInterval(stepInterval);
-      }
+      clearInterval(stepInterval);
+      clearTimeout(showResultsTimeout);
     };
-  }, [criteria.length, recommendations.length, router]);
+  }, [criteria.length, apiResponse]); // Only depend on criteria length and API response
 
   if (criteria.length === 0) {
     return null;
@@ -84,6 +133,7 @@ export default function ProcessingPage() {
     const category = criteria.find(
       (c) => c.category.toLowerCase() === rec.category.toLowerCase()
     );
+
     return sum + rec.price * (Number(category?.quantity) || 0);
   }, 0);
 
