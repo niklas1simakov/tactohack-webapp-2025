@@ -56,6 +56,7 @@ export interface SubmitCriteriaResponse {
   success: boolean;
   message: string;
   nextSteps?: string[];
+  recommendations?: ProductRecommendation[];
 }
 
 export interface ProductSpecs {
@@ -267,6 +268,7 @@ export async function extractCriteriaFromPDF(
  * @param criteria The validated criteria to submit
  * @returns A promise that resolves to the submission result
  */
+/*
 export async function submitCriteria(
   criteria: Criterion[]
 ): Promise<SubmitCriteriaResponse> {
@@ -295,6 +297,7 @@ export async function submitCriteria(
     }, 1000); // 1 second delay
   });
 }
+  */
 
 export async function processRequirements(): Promise<ProcessingResponse> {
   return new Promise((resolve) => {
@@ -363,7 +366,7 @@ export async function extractCriteriaFromPDF(
     const data = await response.json();
 
     return {
-      criteria: data.data,
+      criteria: data,
       success: true,
       message: "Criteria extracted successfully",
     };
@@ -377,28 +380,36 @@ export async function extractCriteriaFromPDF(
   }
 }
 
-/*
-export async function submitCriteria(criteria: Criterion[]): Promise<SubmitCriteriaResponse> {
+export async function submitCriteria(
+  criteria: Criterion[]
+): Promise<SubmitCriteriaResponse> {
   try {
-    const response = await fetch('https://your-api-endpoint.com/submit-criteria', {
-      method: 'POST',
+    const response = await fetch("http://localhost:3001/match-product", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ criteria }),
+      body: JSON.stringify({ requirements: criteria }),
     });
-    
+
     if (!response.ok) {
-      throw new Error('Failed to submit criteria');
+      throw new Error("Failed to submit criteria");
     }
-    
-    return await response.json();
+
+    const data = await response.json();
+
+    return {
+      success: true,
+      message: "Criteria submitted successfully",
+      recommendations: data || [],
+    };
   } catch (error) {
-    console.error('Error submitting criteria:', error);
+    console.error("Error submitting criteria:", error);
+
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'An unknown error occurred'
+      message:
+        error instanceof Error ? error.message : "An unexpected error occurred",
     };
   }
 }
-*/

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
-import { Criterion } from "@/lib/api";
+
+import { Criterion, ProductRecommendation } from "@/lib/api";
 
 // Define the context state shape
 interface ProcessContextState {
@@ -13,6 +14,8 @@ interface ProcessContextState {
   setIsLoading: (isLoading: boolean) => void;
   error: string | null;
   setError: (error: string | null) => void;
+  recommendations: ProductRecommendation[];
+  setRecommendations: (recommendations: ProductRecommendation[]) => void;
 }
 
 // Create the context with default values
@@ -25,6 +28,8 @@ const ProcessContext = createContext<ProcessContextState>({
   setIsLoading: () => {},
   error: null,
   setError: () => {},
+  recommendations: [],
+  setRecommendations: () => {},
 });
 
 // Custom hook to use the context
@@ -36,6 +41,9 @@ export function ProcessProvider({ children }: { children: ReactNode }) {
   const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recommendations, setRecommendations] = useState<
+    ProductRecommendation[]
+  >([]);
 
   return (
     <ProcessContext.Provider
@@ -48,6 +56,8 @@ export function ProcessProvider({ children }: { children: ReactNode }) {
         setIsLoading,
         error,
         setError,
+        recommendations,
+        setRecommendations,
       }}
     >
       {children}

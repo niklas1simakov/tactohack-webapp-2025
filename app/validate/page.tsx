@@ -20,6 +20,7 @@ export default function ValidatePage() {
     setIsLoading,
     error,
     setError,
+    setRecommendations,
   } = useProcess();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -60,6 +61,7 @@ export default function ValidatePage() {
       const response = await submitCriteria(criteria);
 
       if (response.success) {
+        setRecommendations(response.recommendations || []);
         router.push("/processing");
       } else {
         setError(response.message || "Failed to submit criteria");

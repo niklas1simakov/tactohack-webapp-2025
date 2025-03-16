@@ -6,7 +6,6 @@ import { button as buttonStyles } from "@heroui/theme";
 
 import { title, subtitle } from "@/components/primitives";
 import { useProcess } from "@/lib/context/ProcessContext";
-import { processRequirements, ProductRecommendation } from "@/lib/api";
 
 const mockNextSteps = [
   "Analyzing requirements",
@@ -17,18 +16,14 @@ const mockNextSteps = [
 
 export default function ProcessingPage() {
   const router = useRouter();
-  const { criteria } = useProcess();
+  const { criteria, recommendations } = useProcess();
   const [currentStep, setCurrentStep] = useState(0);
-  const [recommendations, setRecommendations] = useState<
-    ProductRecommendation[]
-  >([]);
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (criteria.length === 0) {
       router.push("/");
-
       return;
     }
 
@@ -36,38 +31,27 @@ export default function ProcessingPage() {
     let mounted = true;
 
     const processSteps = async () => {
-      // Progress through steps
+      // Progress through steps - 5 seconds per step, total 20 seconds
       stepInterval = setInterval(() => {
         setCurrentStep((current) => {
           if (current >= mockNextSteps.length - 1) {
             clearInterval(stepInterval);
-
             return current;
           }
-
           return current + 1;
         });
-      }, 7500); // 7.5 seconds per step, total 30 seconds
+      }, 5000);
 
-      // After steps complete, call API
-      setTimeout(async () => {
-        try {
-          const response = await processRequirements();
-
-          if (mounted) {
-            if (response.success) {
-              setRecommendations(response.recommendations);
-              setIsComplete(true);
-            } else {
-              setError(response.message || "Failed to process requirements");
-            }
-          }
-        } catch (err) {
-          if (mounted) {
-            setError("An unexpected error occurred. Please try again.");
+      // Show recommendations after the animation completes
+      setTimeout(() => {
+        if (mounted) {
+          if (recommendations.length > 0) {
+            setIsComplete(true);
+          } else {
+            setError("No recommendations found. Please try again.");
           }
         }
-      }, 30000); // Wait 30 seconds before API call
+      }, 20000); // Show recommendations after 20 seconds
     };
 
     processSteps();
@@ -78,7 +62,7 @@ export default function ProcessingPage() {
         clearInterval(stepInterval);
       }
     };
-  }, [criteria.length, router]);
+  }, [criteria.length, recommendations.length, router]);
 
   if (criteria.length === 0) {
     return null;
@@ -86,16 +70,21 @@ export default function ProcessingPage() {
 
   // Calculate totals
   const totalCategories = criteria.length;
-  const totalQuantity = criteria.reduce((sum, c) => sum + c.quantity, 0);
-  const totalSpecs = criteria.reduce((sum, c) => sum + c.specs.length, 0);
+  const totalQuantity = criteria.reduce(
+    (sum, c) => sum + Number(c.quantity),
+    0
+  );
+  const totalSpecs = criteria.reduce(
+    (sum, c) => sum + Object.keys(c.specs).length,
+    0
+  );
 
   // Calculate total price
   const totalPrice = recommendations.reduce((sum, rec) => {
     const category = criteria.find(
       (c) => c.category.toLowerCase() === rec.category.toLowerCase()
     );
-
-    return sum + rec.price * (category?.quantity || 0);
+    return sum + rec.price * (Number(category?.quantity) || 0);
   }, 0);
 
   return (
